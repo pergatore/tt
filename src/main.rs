@@ -11,7 +11,7 @@ mod util;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    /// Path to the data file (defaults to ~/.local/share/tt/entries.log)
+    /// Path to the data file (defaults to ~/.local/share/timetracker/entries.log)
     #[arg(long)]
     data: Option<String>,
 
