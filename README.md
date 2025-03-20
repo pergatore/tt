@@ -36,10 +36,10 @@ A simple command-line time tracking application written in Rust.
 
 2. Add tasks as you complete them:
    ```
-   tt add "project-1: task-1"
-   tt add "lunch **"  # break activity
-   tt add "project-1: task-2"
-   tt add "commuting ***"  # ignored activity
+   tt add "Education: CKA Labs"
+   tt add "lunch **"  # Break
+   tt add "Meeting: Standup"
+   tt add "twiddlin' thumbs ***"  # ignored activity
    ```
 
 3. Generate a report for today:
@@ -55,7 +55,7 @@ A simple command-line time tracking application written in Rust.
 ## Activity Types
 
 - **Work activities**: Regular activities that count toward working time.
-  Example: `tt add "coding"`
+  Example: `tt add "admin"`
 
 - **Break activities**: Activities that count toward break time, marked with `**` at the end.
   Example: `tt add "lunch **"`
@@ -68,8 +68,8 @@ A simple command-line time tracking application written in Rust.
 You can group activities by projects using the `project: task` notation:
 
 ```
-tt add "project-1: implementing feature"
-tt add "project-2: bug fix"
+tt add "Education: CKA Labs"
+tt add "Sprint-2: bug fix"
 ```
 
 ## Commands
@@ -172,10 +172,10 @@ YYYY-MM-DD HH:MM[+/-HHMM] activity name [# comment]
 
 Example:
 ```
-2023-10-15 09:00 hello
-2023-10-15 10:30 project-1: implementing feature # added initial structure
-2023-10-15 12:00 lunch **
-2023-10-15 13:00 project-1: implementing feature
+2023-10-15 09:00+0100 Hello
+2023-10-15 10:30+0100 Education: CKA Labs 
+2023-10-15 12:00+0100 Lunch **
+2023-10-15 13:00+0100 Sprint-69: implementing feature JIRA-069
 ```
 
 ## License
