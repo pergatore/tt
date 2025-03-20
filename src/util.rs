@@ -57,15 +57,6 @@ pub fn format_duration(duration: Duration) -> String {
     format!("{}h{:02}", hours, minutes)
 }
 
-pub fn beginning_of_day(date: NaiveDate) -> DateTime<Local> {
-    let naive = date.and_hms_opt(0, 0, 0).unwrap();
-    Local.from_utc_datetime(&naive)
-}
-
-pub fn end_of_day(date: NaiveDate) -> DateTime<Local> {
-    let naive = date.and_hms_opt(23, 59, 59).unwrap();
-    Local.from_utc_datetime(&naive)
-}
 
 pub fn parse_week(week_str: &str, today: NaiveDate) -> Result<(NaiveDate, NaiveDate)> {
     let first_day = match week_str.to_lowercase().as_str() {
