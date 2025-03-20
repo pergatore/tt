@@ -80,16 +80,8 @@ impl Entry {
         }
     }
     
-    pub fn activity_type(&self) -> ActivityType {
-        if self.name.ends_with("***") {
-            ActivityType::Ignored
-        } else if self.name.ends_with("**") {
-            ActivityType::Break
-        } else {
-            ActivityType::Work
-        }
-    }
-    
+
+    // This method is used in Activity::new()
     pub fn project(&self) -> Option<String> {
         let re = Regex::new(r"^([^\s:]+):\s+(.+)$").unwrap();
         
@@ -100,6 +92,7 @@ impl Entry {
         }
     }
     
+    // This method is used in Activity::new()
     pub fn task(&self) -> String {
         let re = Regex::new(r"^([^\s:]+):\s+(.+)$").unwrap();
         
@@ -161,27 +154,5 @@ impl Activity {
             project,
             task,
         }
-    }
-    
-    /// Clip the activity to a specific time range
-    pub fn clip(&self, start: Option<DateTime<Local>>, end: Option<DateTime<Local>>) -> Self {
-        let mut new_activity = self.clone();
-        
-        if let Some(start_time) = start {
-            if start_time > new_activity.start {
-                new_activity.start = start_time;
-            }
-        }
-        
-        if let Some(end_time) = end {
-            if end_time < new_activity.end {
-                new_activity.end = end_time;
-            }
-        }
-        
-        // Recalculate duration
-        new_activity.duration = new_activity.end.signed_duration_since(new_activity.start);
-        
-        new_activity
     }
 }
