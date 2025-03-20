@@ -26,6 +26,7 @@ A simple command-line time tracking application written in Rust.
    cargo install --path .
    ```
 4. This will install the `tt` command to your PATH
+5. Alternatively, run `./build.sh`
 
 ### Basic Usage
 
