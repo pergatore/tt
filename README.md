@@ -34,10 +34,10 @@ A simple command-line time tracking application written in Rust.
 
 2. Add tasks as you complete them:
    ```
-   tt add "Education: CKA Labs"
-   tt add "lunch **"  # Break
-   tt add "Meeting: Standup"
-   tt add "twiddlin' thumbs ***"  # ignored activity
+   tt add "Education: CKA Labs" # This will add CKA labs to the Education project
+   tt add "Lunch **"  # This will add a break
+   tt add "Meeting: Standup" # This will add Standup to the Meeting project
+   tt add "Twiddlin' thumbs ***"  # This will add a task that doesn't count toward working time (i.e commuting)
    ```
 
 3. Generate a report for today:
@@ -182,4 +182,4 @@ This software is released under the GPL-3.0 License.
 
 ## Shoutout & Accolades
 This is heavily inspired by a probably better tool [UTT](https://github.com/larose/utt) by [larose](https://github.com/larose)
-This was mainly used as a learning journey for using rust, you can practically consider this unmaintained. 
+This was mainly used as a learning journey for using rust and some added functionality I needed for my work, you can practically consider this unmaintained. 
