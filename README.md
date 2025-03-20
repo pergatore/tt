@@ -1,3 +1,6 @@
+This is heavily inspired by a probably better tool [UTT](https://github.com/larose/utt) by [larose](https://github.com/larose)
+This was mainly used as a learning journey for using rust, you can practically consider this unmaintained. 
+
 # Timetracker (TT)
 
 A simple command-line time tracking application written in Rust.
