@@ -100,12 +100,12 @@ tt report
 
 Report for a specific date:
 ```
-tt report 2023-10-15
+tt report 2025-03-15
 ```
 
 Report for a date range:
 ```
-tt report --from 2023-10-10 --to 2023-10-15
+tt report --from 2025-03-10 --to 2025-03-15
 ```
 
 Filter by project:
@@ -170,10 +170,10 @@ YYYY-MM-DD HH:MM[+/-HHMM] activity name [# comment]
 
 Example:
 ```
-2023-10-15 09:00+0100 Hello
-2023-10-15 10:30+0100 Education: CKA Labs 
-2023-10-15 12:00+0100 Lunch **
-2023-10-15 13:00+0100 Sprint-69: implementing feature JIRA-069
+2025-03-15 09:00+0100 Hello
+2025-03-15 10:30+0100 Education: CKA Labs 
+2025-03-15 12:00+0100 Lunch **
+2025-03-15 13:00+0100 Sprint-69: implementing feature JIRA-069
 ```
 
 ## License
