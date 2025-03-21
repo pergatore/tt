@@ -43,7 +43,7 @@ pub fn execute(
     );
     
     // Convert entries to activities
-    let mut activities = storage::entries_to_activities(&filtered_entries);
+    let mut activities = storage::entries_to_activities(&filtered_entries, Some(range.start_date), Some(range.end_date));
     
     // Filter activities to only include those that fall within our date range
     // This ensures we don't include activities from previous days

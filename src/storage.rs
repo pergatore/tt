@@ -4,7 +4,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-use crate::entry::{Activity, Entry, HELLO_ENTRY_NAME, MIDNIGHT_SEPARATOR_PREFIX};
+use crate::entry::{Activity, Entry, MIDNIGHT_SEPARATOR_PREFIX};
 
 pub fn read_entries(data_file: &Path) -> Result<Vec<Entry>> {
     if !data_file.exists() {
@@ -168,7 +168,7 @@ pub fn entries_to_activities(entries: &[Entry], start_date: Option<NaiveDate>, e
         activities.push(activity);
     }
     
-    activities;
+    activities
 }
 
 pub fn filter_entries_by_date_range(entries: &[Entry], start_date: NaiveDate, end_date: NaiveDate) -> Vec<Entry> {
