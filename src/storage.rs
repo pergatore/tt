@@ -110,7 +110,7 @@ pub fn append_entry(data_file: &Path, entry: &Entry) -> Result<()> {
     Ok(())
 }
 
-pub fn entries_to_activities(entries: &[Entry]) -> Vec<Activity> {
+pub fn entries_to_activities(entries: &[Entry], start_date: Option<NaiveDate>, end_date: Option<NaiveDate>) -> Vec<Activity> {
     let mut activities = Vec::new();
     
     // We need at least two entries to create an activity
@@ -130,10 +130,37 @@ pub fn entries_to_activities(entries: &[Entry]) -> Vec<Activity> {
             continue;
         }
         
+        // Get the start and end times
+        let start_time = entries[i].datetime;
+        let end_time = entries[i+1].datetime;
+        
+        // Apply date filtering if specified
+        // Only include activities that occur within the date range
+        if let Some(start_date) = start_date {
+            if end_time.date_naive() < start_date {
+                continue;  // Skip activities that end before the start date
+            }
+        }
+        
+        if let Some(end_date) = end_date {
+            if start_time.date_naive() > end_date {
+                continue;  // Skip activities that start after the end date
+            }
+        }
+        
+        // Only include activities where the end time is within the date range
+        // This ensures only activities that complete within the requested range are shown
+        if let (Some(start_date), Some(end_date)) = (start_date, end_date) {
+            let activity_date = end_time.date_naive();
+            if activity_date < start_date || activity_date > end_date {
+                continue;
+            }
+        }
+        
         let activity = Activity::new(
             entries[i+1].name.clone(),
-            entries[i].datetime,
-            entries[i+1].datetime,
+            start_time,
+            end_time,
             false,
             entries[i+1].comment.clone(),
         );
@@ -141,65 +168,43 @@ pub fn entries_to_activities(entries: &[Entry]) -> Vec<Activity> {
         activities.push(activity);
     }
     
-    activities
+    activities;
 }
 
 pub fn filter_entries_by_date_range(entries: &[Entry], start_date: NaiveDate, end_date: NaiveDate) -> Vec<Entry> {
-    let mut filtered_entries = Vec::new();
-    let mut current_day_entries = Vec::new();
-    let mut current_date = None;
+    // If there are no entries, return an empty vector
+    if entries.is_empty() {
+        return Vec::new();
+    }
     
+    let mut filtered_entries = Vec::new();
+    
+    // Find the last entry before the start date (needed for calculating the first activity's duration)
+    // This handles the case where an activity starts before our date range but ends within it
+    let mut last_entry_before_range = None;
+    for entry in entries.iter().rev() {
+        if entry.datetime.date_naive() < start_date {
+            last_entry_before_range = Some(entry.clone());
+            break;
+        }
+    }
+    
+    // If we found a last entry before the range, include it
+    if let Some(entry) = last_entry_before_range {
+        filtered_entries.push(entry);
+    }
+    
+    // Include all entries within the date range
     for entry in entries {
         let entry_date = entry.datetime.date_naive();
         
-        // Check if this is a midnight separator
-        if entry.name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
-            // Save current day entries if they are in range
-            if let Some(date) = current_date {
-                if date >= start_date && date <= end_date {
-                    filtered_entries.extend(current_day_entries.drain(..));
-                } else {
-                    current_day_entries.clear();
-                }
-            }
-            
-            // Start a new day
-            current_date = Some(entry_date);
-            current_day_entries.push(entry.clone());
-            continue;
+        if entry_date >= start_date && entry_date <= end_date {
+            filtered_entries.push(entry.clone());
         }
-        
-        // If we've encountered a hello entry without a preceding midnight separator
-        if entry.name == HELLO_ENTRY_NAME && (current_date.is_none() || current_date.unwrap() != entry_date) {
-            // Save current day entries if they are in range
-            if let Some(date) = current_date {
-                if date >= start_date && date <= end_date {
-                    filtered_entries.extend(current_day_entries.drain(..));
-                } else {
-                    current_day_entries.clear();
-                }
-            }
-            
-            // Start a new day
-            current_date = Some(entry_date);
-            current_day_entries.push(entry.clone());
-            continue;
-        }
-        
-        // Regular entry, add to current day
-        if current_date.is_none() {
-            current_date = Some(entry_date);
-        }
-        
-        current_day_entries.push(entry.clone());
     }
     
-    // Don't forget to process the last day
-    if let Some(date) = current_date {
-        if date >= start_date && date <= end_date {
-            filtered_entries.extend(current_day_entries);
-        }
-    }
+    // Sort entries by datetime (just in case)
+    filtered_entries.sort_by(|a, b| a.datetime.cmp(&b.datetime));
     
     filtered_entries
 }

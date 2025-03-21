@@ -45,6 +45,14 @@ pub fn execute(
     // Convert entries to activities
     let mut activities = storage::entries_to_activities(&filtered_entries);
     
+    // Filter activities to only include those that fall within our date range
+    // This ensures we don't include activities from previous days
+    activities.retain(|activity| {
+        // Activity end time must be within our date range
+        let activity_date = activity.end.date_naive();
+        activity_date >= range.start_date && activity_date <= range.end_date
+    });
+    
     // Add current activity if requested
     if !no_current_activity && !filtered_entries.is_empty() {
         let last_entry = filtered_entries.last().unwrap();
@@ -88,7 +96,6 @@ pub fn execute(
     
     Ok(())
 }
-
 /// Parse date range from various command line arguments
 fn parse_date_range(
     date: Option<&str>,
