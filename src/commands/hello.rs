@@ -1,5 +1,4 @@
 use anyhow::Result;
-use chrono::{Local, NaiveTime, TimeZone};
 
 use crate::config::Config;
 use crate::entry::{Entry, HELLO_ENTRY_NAME, MIDNIGHT_SEPARATOR_PREFIX};
@@ -34,20 +33,17 @@ pub fn execute(cli: &crate::Cli, config: &Config) -> Result<()> {
     
     // If needed, add a midnight separator entry
     if create_midnight_separator {
-        // Create a midnight entry at 00:00 of the current day
-        let midnight_naive = now.date_naive().and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
-        let midnight = Local.from_local_datetime(&midnight_naive).single().unwrap();
-        
-        // Create a midnight separator entry
-        let midnight_entry = Entry::new(
-            midnight, 
+        // Create a separator entry with current time, not midnight
+        // This indicates a new day is starting when the hello command is run
+        let separator_entry = Entry::new(
+            now, 
             format!("{}", MIDNIGHT_SEPARATOR_PREFIX), 
             false, 
             None
         );
         
         // Write the midnight separator to the log file
-        storage::append_entry(&data_file, &midnight_entry)?;
+        storage::append_entry(&data_file, &separator_entry)?;
     }
     
     // Create a hello entry

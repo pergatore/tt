@@ -35,6 +35,13 @@ pub fn execute(
     // Read all entries from the log file
     let all_entries = storage::read_entries(&data_file)?;
     
+    // Check if we're displaying just today's report (the default case)
+    let is_today_only = range.start_date == now.date_naive() && 
+                         range.end_date == now.date_naive() && 
+                         date.is_none() && from_date.is_none() && 
+                         to_date.is_none() && month.is_none() && 
+                         week.is_none();
+    
     // Filter entries by date range considering midnight separators
     let filtered_entries = storage::filter_entries_by_date_range(
         &all_entries, 
@@ -45,13 +52,18 @@ pub fn execute(
     // Convert entries to activities
     let mut activities = storage::entries_to_activities(&filtered_entries, Some(range.start_date), Some(range.end_date));
     
-    // Filter activities to only include those that fall within our date range
-    // This ensures we don't include activities from previous days
-    activities.retain(|activity| {
-        // Activity end time must be within our date range
-        let activity_date = activity.end.date_naive();
-        activity_date >= range.start_date && activity_date <= range.end_date
-    });
+    // For today-only reports, ensure we only show activities that occurred today
+    if is_today_only {
+        activities.retain(|activity| {
+            activity.end.date_naive() == now.date_naive()
+        });
+    } else {
+        // For other date ranges, ensure activities fall within the specified range
+        activities.retain(|activity| {
+            let activity_date = activity.end.date_naive();
+            activity_date >= range.start_date && activity_date <= range.end_date
+        });
+    }
     
     // Add current activity if requested
     if !no_current_activity && !filtered_entries.is_empty() {

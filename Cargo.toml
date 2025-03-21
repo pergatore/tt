@@ -1,6 +1,6 @@
 [package]
 name = "tt"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Timetracker (TT) - a CLI time tracking application"
 authors = ["pergeri <pergunnar.eriksson@gmail.com>"]

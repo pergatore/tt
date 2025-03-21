@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Local, NaiveDate};
+use chrono::{DateTime, Local, NaiveDate, TimeZone};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-use crate::entry::{Activity, Entry, MIDNIGHT_SEPARATOR_PREFIX};
+use crate::entry::{Activity, Entry, MIDNIGHT_SEPARATOR_PREFIX, HELLO_ENTRY_NAME};
 
 pub fn read_entries(data_file: &Path) -> Result<Vec<Entry>> {
     if !data_file.exists() {
@@ -134,32 +134,58 @@ pub fn entries_to_activities(entries: &[Entry], start_date: Option<NaiveDate>, e
         let start_time = entries[i].datetime;
         let end_time = entries[i+1].datetime;
         
-        // Apply date filtering if specified
-        // Only include activities that occur within the date range
-        if let Some(start_date) = start_date {
-            if end_time.date_naive() < start_date {
-                continue;  // Skip activities that end before the start date
-            }
-        }
+        // Special handling for "hello" entries
+        // Make the hello entry start at the beginning of the day instead of from the last entry of the previous day
+        let adjusted_start_time = if entries[i+1].name == HELLO_ENTRY_NAME {
+            // Use midnight of the current day as the start time for hello entries
+            let naive_midnight = end_time.date_naive().and_time(chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap());
+            Local.from_local_datetime(&naive_midnight).single().unwrap()
+        } else {
+            start_time
+        };
         
-        if let Some(end_date) = end_date {
-            if start_time.date_naive() > end_date {
-                continue;  // Skip activities that start after the end date
-            }
-        }
+        // Activities are defined by their end time (the timestamp when they were recorded)
+        // The activity belongs to the day of its end timestamp
+        let activity_date = end_time.date_naive();
         
-        // Only include activities where the end time is within the date range
-        // This ensures only activities that complete within the requested range are shown
+        // Filter based on date range
         if let (Some(start_date), Some(end_date)) = (start_date, end_date) {
-            let activity_date = end_time.date_naive();
+            // Only include activities that end within the specified date range
             if activity_date < start_date || activity_date > end_date {
                 continue;
+            }
+            
+            // Additional check: if this is for a single day report (default "today" behavior)
+            // and the start time is from a previous day, make sure it's only from the 
+            // immediately preceding day, unless it's a "hello" entry which we already adjusted
+            if start_date == end_date && entries[i+1].name != HELLO_ENTRY_NAME {
+                let start_activity_date = adjusted_start_time.date_naive();
+                if start_activity_date < activity_date {
+                    // Calculate days between the dates
+                    let days_between = (activity_date - start_activity_date).num_days();
+                    if days_between > 1 {
+                        continue; // Skip activities that started more than one day before
+                    }
+                }
+            }
+        } else {
+            // Apply date filtering if only one date boundary is specified
+            if let Some(start_date) = start_date {
+                if activity_date < start_date {
+                    continue;  // Skip activities that end before the start date
+                }
+            }
+            
+            if let Some(end_date) = end_date {
+                if activity_date > end_date {
+                    continue;  // Skip activities that end after the end date
+                }
             }
         }
         
         let activity = Activity::new(
             entries[i+1].name.clone(),
-            start_time,
+            adjusted_start_time,  // Use the adjusted start time
             end_time,
             false,
             entries[i+1].comment.clone(),
@@ -181,15 +207,22 @@ pub fn filter_entries_by_date_range(entries: &[Entry], start_date: NaiveDate, en
     
     // Find the last entry before the start date (needed for calculating the first activity's duration)
     // This handles the case where an activity starts before our date range but ends within it
+    // Only include this entry if it's from the same day as start_date or from the immediate previous day
     let mut last_entry_before_range = None;
     for entry in entries.iter().rev() {
-        if entry.datetime.date_naive() < start_date {
-            last_entry_before_range = Some(entry.clone());
+        let entry_date = entry.datetime.date_naive();
+        if entry_date < start_date {
+            // Only include the previous entry if it's from the same day or immediately before
+            // This prevents showing activities from days far in the past
+            let days_between = (start_date - entry_date).num_days();
+            if days_between <= 1 {
+                last_entry_before_range = Some(entry.clone());
+            }
             break;
         }
     }
     
-    // If we found a last entry before the range, include it
+    // If we found a valid last entry before the range, include it
     if let Some(entry) = last_entry_before_range {
         filtered_entries.push(entry);
     }
