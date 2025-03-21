@@ -32,27 +32,39 @@ pub fn execute(
     // Get data file path
     let data_file = cli.data.as_ref().map(std::path::PathBuf::from).unwrap_or_else(|| config.data_file.clone());
     
-    // Read entries from the log file
-    let entries = storage::read_entries(&data_file)?;
+    // Read all entries from the log file
+    let all_entries = storage::read_entries(&data_file)?;
+    
+    // Filter entries by date range considering midnight separators
+    let filtered_entries = storage::filter_entries_by_date_range(
+        &all_entries, 
+        range.start_date, 
+        range.end_date
+    );
     
     // Convert entries to activities
-    let mut activities = storage::entries_to_activities(&entries);
+    let mut activities = storage::entries_to_activities(&filtered_entries);
     
     // Add current activity if requested
-    if !no_current_activity && !entries.is_empty() {
-        let current_activity_name = if current_activity.is_empty() {
-            "-- Current Activity --"
-        } else {
-            current_activity
-        };
+    if !no_current_activity && !filtered_entries.is_empty() {
+        let last_entry = filtered_entries.last().unwrap();
         
-        let current = storage::create_current_activity(
-            entries.last().unwrap(),
-            now,
-            current_activity_name
-        );
-        
-        activities.push(current);
+        // Only add current activity if the last entry is from today
+        if last_entry.datetime.date_naive() == now.date_naive() {
+            let current_activity_name = if current_activity.is_empty() {
+                "-- Current Activity --"
+            } else {
+                current_activity
+            };
+            
+            let current = storage::create_current_activity(
+                last_entry,
+                now,
+                current_activity_name
+            );
+            
+            activities.push(current);
+        }
     }
     
     // Create report options

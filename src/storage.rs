@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, NaiveDate};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-use crate::entry::{Activity, Entry};
+use crate::entry::{Activity, Entry, HELLO_ENTRY_NAME, MIDNIGHT_SEPARATOR_PREFIX};
 
 pub fn read_entries(data_file: &Path) -> Result<Vec<Entry>> {
     if !data_file.exists() {
@@ -118,8 +118,18 @@ pub fn entries_to_activities(entries: &[Entry]) -> Vec<Activity> {
         return activities;
     }
     
-    // Create activities from consecutive entries
+    // Create activities from consecutive entries, skipping midnight separators
     for i in 0..entries.len() - 1 {
+        // Skip if this is a midnight separator entry
+        if entries[i+1].name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
+            continue;
+        }
+        
+        // Skip if previous entry was a midnight separator
+        if entries[i].name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
+            continue;
+        }
+        
         let activity = Activity::new(
             entries[i+1].name.clone(),
             entries[i].datetime,
@@ -132,6 +142,66 @@ pub fn entries_to_activities(entries: &[Entry]) -> Vec<Activity> {
     }
     
     activities
+}
+
+pub fn filter_entries_by_date_range(entries: &[Entry], start_date: NaiveDate, end_date: NaiveDate) -> Vec<Entry> {
+    let mut filtered_entries = Vec::new();
+    let mut current_day_entries = Vec::new();
+    let mut current_date = None;
+    
+    for entry in entries {
+        let entry_date = entry.datetime.date_naive();
+        
+        // Check if this is a midnight separator
+        if entry.name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
+            // Save current day entries if they are in range
+            if let Some(date) = current_date {
+                if date >= start_date && date <= end_date {
+                    filtered_entries.extend(current_day_entries.drain(..));
+                } else {
+                    current_day_entries.clear();
+                }
+            }
+            
+            // Start a new day
+            current_date = Some(entry_date);
+            current_day_entries.push(entry.clone());
+            continue;
+        }
+        
+        // If we've encountered a hello entry without a preceding midnight separator
+        if entry.name == HELLO_ENTRY_NAME && (current_date.is_none() || current_date.unwrap() != entry_date) {
+            // Save current day entries if they are in range
+            if let Some(date) = current_date {
+                if date >= start_date && date <= end_date {
+                    filtered_entries.extend(current_day_entries.drain(..));
+                } else {
+                    current_day_entries.clear();
+                }
+            }
+            
+            // Start a new day
+            current_date = Some(entry_date);
+            current_day_entries.push(entry.clone());
+            continue;
+        }
+        
+        // Regular entry, add to current day
+        if current_date.is_none() {
+            current_date = Some(entry_date);
+        }
+        
+        current_day_entries.push(entry.clone());
+    }
+    
+    // Don't forget to process the last day
+    if let Some(date) = current_date {
+        if date >= start_date && date <= end_date {
+            filtered_entries.extend(current_day_entries);
+        }
+    }
+    
+    filtered_entries
 }
 
 pub fn create_current_activity(

@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
-// Constants for activity types
+// Constants for entry types
 pub const HELLO_ENTRY_NAME: &str = "hello";
+pub const MIDNIGHT_SEPARATOR_PREFIX: &str = "--- Midnight: New Day ---";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ActivityType {
@@ -135,7 +136,10 @@ impl Activity {
         let duration = end.signed_duration_since(start);
         let project = Entry::new(start, name.clone(), false, None).project();
         let task = Entry::new(start, name.clone(), false, None).task();
-        let activity_type = if name.ends_with("***") {
+        
+        let activity_type = if name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
+            ActivityType::Ignored
+        } else if name.ends_with("***") {
             ActivityType::Ignored
         } else if name.ends_with("**") {
             ActivityType::Break
