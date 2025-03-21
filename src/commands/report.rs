@@ -52,15 +52,21 @@ pub fn execute(
     // Convert entries to activities
     let mut activities = storage::entries_to_activities(&filtered_entries, Some(range.start_date), Some(range.end_date));
     
-    // For today-only reports, ensure we only show activities that occurred today
+    // For today-only reports, ensure we show all activities that have a start or end time today
     if is_today_only {
         activities.retain(|activity| {
-            activity.end.date_naive() == now.date_naive()
+            let today = now.date_naive();
+            let activity_date = activity.end.date_naive();
+            
+            // For current day reports, show activities that end today
+            activity_date == today
         });
     } else {
-        // For other date ranges, ensure activities fall within the specified range
+        // For date range reports, show all activities that occur within the range
         activities.retain(|activity| {
             let activity_date = activity.end.date_naive();
+            
+            // Include activities where the end date falls within the range
             activity_date >= range.start_date && activity_date <= range.end_date
         });
     }
@@ -108,6 +114,7 @@ pub fn execute(
     
     Ok(())
 }
+
 /// Parse date range from various command line arguments
 fn parse_date_range(
     date: Option<&str>,

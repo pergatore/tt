@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::NaiveDate;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::entry::{Activity, ActivityType};
 use crate::util;
@@ -217,9 +217,9 @@ fn format_projects(projects: &HashMap<String, (chrono::Duration, Vec<String>)>) 
     output
 }
 
-fn group_by_activity(activities: &[Activity]) -> HashMap<ActivityType, Vec<(String, String, chrono::Duration)>> {
-    let mut grouped: HashMap<ActivityType, Vec<(String, String, chrono::Duration)>> = HashMap::new();
-    let mut seen_tasks: HashMap<(ActivityType, String, String), chrono::Duration> = HashMap::new();
+fn group_by_activity(activities: &[Activity]) -> HashMap<ActivityType, Vec<(String, String, chrono::Duration, NaiveDate)>> {
+    let mut grouped: HashMap<ActivityType, Vec<(String, String, chrono::Duration, NaiveDate)>> = HashMap::new();
+    let mut seen_tasks: HashMap<(ActivityType, String, String, NaiveDate), chrono::Duration> = HashMap::new();
     
     // First, calculate total durations for each unique activity
     for activity in activities {
@@ -228,26 +228,34 @@ fn group_by_activity(activities: &[Activity]) -> HashMap<ActivityType, Vec<(Stri
         }
         
         let project = activity.project.clone().unwrap_or_default();
-        let key = (activity.activity_type.clone(), project.clone(), activity.task.clone());
+        let activity_date = activity.end.date_naive();
+        let key = (activity.activity_type.clone(), project.clone(), activity.task.clone(), activity_date);
         
         let duration = seen_tasks.entry(key).or_insert(chrono::Duration::zero());
         *duration = *duration + activity.duration;
     }
     
     // Then, populate the groups
-    for ((activity_type, project, task), duration) in seen_tasks {
+    for ((activity_type, project, task, date), duration) in seen_tasks {
         if !grouped.contains_key(&activity_type) {
             grouped.insert(activity_type.clone(), Vec::new());
         }
         
         if let Some(group) = grouped.get_mut(&activity_type) {
-            group.push((project, task, duration));
+            group.push((project, task, duration, date));
         }
     }
     
-    // Sort each group by project and task
+    // Sort each group by date, then by project and task
     for group in grouped.values_mut() {
         group.sort_by(|a, b| {
+            // First sort by date
+            let date_cmp = a.3.cmp(&b.3);
+            if date_cmp != std::cmp::Ordering::Equal {
+                return date_cmp;
+            }
+            
+            // Then sort by project and task
             let a_key = format!("{}{}", a.0.to_lowercase(), a.1.to_lowercase());
             let b_key = format!("{}{}", b.0.to_lowercase(), b.1.to_lowercase());
             a_key.cmp(&b_key)
@@ -257,12 +265,35 @@ fn group_by_activity(activities: &[Activity]) -> HashMap<ActivityType, Vec<(Stri
     grouped
 }
 
-fn format_activity_groups(groups: &HashMap<ActivityType, Vec<(String, String, chrono::Duration)>>) -> String {
+fn format_activity_groups(groups: &HashMap<ActivityType, Vec<(String, String, chrono::Duration, NaiveDate)>>) -> String {
     let mut output = String::new();
+    let mut saw_multi_days = false;
+    
+    // Check if we have activities from multiple days
+    let mut unique_dates = HashSet::new();
+    for activities in groups.values() {
+        for (_, _, _, date) in activities {
+            unique_dates.insert(*date);
+        }
+    }
+    
+    saw_multi_days = unique_dates.len() > 1;
     
     // Format work activities
     if let Some(work_activities) = groups.get(&ActivityType::Work) {
-        for (project, task, duration) in work_activities {
+        let mut current_date: Option<NaiveDate> = None;
+        
+        for (project, task, duration, date) in work_activities {
+            // Add date header if date changes and we have multiple days
+            if saw_multi_days && current_date.map_or(true, |d| d != *date) {
+                if current_date.is_some() {
+                    output.push('\n');
+                }
+                
+                current_date = Some(*date);
+                output.push_str(&format!("{}:\n", date.format("%Y-%m-%d")));
+            }
+            
             let project_str = if project.is_empty() {
                 String::new()
             } else {
@@ -280,7 +311,19 @@ fn format_activity_groups(groups: &HashMap<ActivityType, Vec<(String, String, ch
     
     // Format break activities
     if let Some(break_activities) = groups.get(&ActivityType::Break) {
-        for (project, task, duration) in break_activities {
+        let mut current_date: Option<NaiveDate> = None;
+        
+        for (project, task, duration, date) in break_activities {
+            // Add date header if date changes and we have multiple days
+            if saw_multi_days && current_date.map_or(true, |d| d != *date) {
+                if current_date.is_some() {
+                    output.push('\n');
+                }
+                
+                current_date = Some(*date);
+                output.push_str(&format!("{}:\n", date.format("%Y-%m-%d")));
+            }
+            
             let project_str = if project.is_empty() {
                 String::new()
             } else {

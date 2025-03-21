@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Local, NaiveDate};
+use chrono::{DateTime, Local, NaiveDate, TimeZone};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::Path;
@@ -144,38 +144,61 @@ pub fn entries_to_activities(entries: &[Entry], start_date: Option<NaiveDate>, e
         let start_time = entries[i].datetime;
         let end_time = entries[i+1].datetime;
         
-        // Apply date filtering if specified
-        // Only include activities that occur within the date range
-        if let Some(start_date) = start_date {
-            if end_time.date_naive() < start_date {
-                continue;  // Skip activities that end before the start date
+        // If the times span multiple days, split them into separate daily activities
+        if start_time.date_naive() != end_time.date_naive() {
+            // Create an activity for each day in the range
+            let mut current_date = start_time.date_naive();
+            let end_date = end_time.date_naive();
+            
+            while current_date <= end_date {
+                // Define the start and end of the activity for this specific day
+                let day_start = if current_date == start_time.date_naive() {
+                    start_time
+                } else {
+                    // Start of the day (midnight)
+                    Local.from_utc_datetime(&current_date.and_hms_opt(0, 0, 0).unwrap())
+                };
+                
+                let day_end = if current_date == end_date {
+                    end_time
+                } else {
+                    // End of the day (23:59:59)
+                    Local.from_utc_datetime(&current_date.and_hms_opt(23, 59, 59).unwrap())
+                };
+                
+                let activity = Activity::new(
+                    entries[i+1].name.clone(),
+                    day_start,
+                    day_end,
+                    false,
+                    entries[i+1].comment.clone(),
+                );
+                
+                activities.push(activity);
+                
+                // Move to the next day
+                current_date = current_date.succ_opt().unwrap();
             }
+        } else {
+            // Regular single-day activity
+            let activity = Activity::new(
+                entries[i+1].name.clone(),
+                start_time,
+                end_time,
+                false,
+                entries[i+1].comment.clone(),
+            );
+            
+            activities.push(activity);
         }
-        
-        if let Some(end_date) = end_date {
-            if start_time.date_naive() > end_date {
-                continue;  // Skip activities that start after the end date
-            }
-        }
-        
-        // Only include activities where the end time is within the date range
-        // This ensures only activities that complete within the requested range are shown
-        if let (Some(start_date), Some(end_date)) = (start_date, end_date) {
-            let activity_date = end_time.date_naive();
-            if activity_date < start_date || activity_date > end_date {
-                continue;
-            }
-        }
-        
-        let activity = Activity::new(
-            entries[i+1].name.clone(),
-            start_time,
-            end_time,
-            false,
-            entries[i+1].comment.clone(),
-        );
-        
-        activities.push(activity);
+    }
+    
+    // Apply date filtering if specified
+    if let (Some(start), Some(end)) = (start_date, end_date) {
+        activities.retain(|activity| {
+            let activity_date = activity.end.date_naive();
+            activity_date >= start && activity_date <= end
+        });
     }
     
     activities
