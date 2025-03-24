@@ -140,17 +140,43 @@ pub fn entries_to_activities(
         let start_time = entries[i].datetime;
         let end_time = entries[i+1].datetime;
         
-        // Create activity using the CURRENT entry's name
-        // This represents what you were doing during this time span
-        let activity = Activity::new(
-            entries[i].name.clone(),
-            start_time,
-            end_time,
-            false,
-            entries[i].comment.clone(),
-        );
+        // Check if this spans across days
+        let start_date = start_time.date_naive();
+        let end_date = end_time.date_naive();
         
-        activities.push(activity);
+        // If the entries span across different days and the next entry isn't a midnight separator,
+        // we should limit this activity to the end of the day (23:59:59)
+        if start_date != end_date && !entries[i+1].name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
+            // Create an end of day time (23:59:59) for the start date
+            let end_of_day = Local
+                .from_local_datetime(
+                    &start_date.and_hms_opt(23, 59, 59).unwrap()
+                )
+                .unwrap();
+            
+            // Create activity that ends at the end of the day
+            let activity = Activity::new(
+                entries[i].name.clone(),
+                start_time,
+                end_of_day,
+                false,
+                entries[i].comment.clone(),
+            );
+            
+            activities.push(activity);
+        } else {
+            // Create activity using the CURRENT entry's name
+            // This represents what you were doing during this time span
+            let activity = Activity::new(
+                entries[i].name.clone(),
+                start_time,
+                end_time,
+                false,
+                entries[i].comment.clone(),
+            );
+            
+            activities.push(activity);
+        }
     }
     
     // Handle the last entry separately - it represents what you're currently doing
@@ -199,9 +225,16 @@ pub fn filter_entries_by_date_range(entries: &[Entry], start_date: NaiveDate, en
     // Find the last entry before the start date (needed for calculating the first activity's duration)
     // This handles the case where an activity starts before our date range but ends within it
     let mut last_entry_before_range = None;
+    
+    // Only include the last entry before the range if it's from the same day as the start date
+    // This prevents including entries from days or weeks ago
     for entry in entries.iter().rev() {
-        if entry.datetime.date_naive() < start_date {
-            last_entry_before_range = Some(entry.clone());
+        let entry_date = entry.datetime.date_naive();
+        if entry_date < start_date {
+            // Only include if it's from the day before the start date
+            if entry_date == start_date.pred_opt().unwrap() {
+                last_entry_before_range = Some(entry.clone());
+            }
             break;
         }
     }
