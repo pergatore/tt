@@ -110,33 +110,29 @@ pub fn append_entry(data_file: &Path, entry: &Entry) -> Result<()> {
     Ok(())
 }
 
-pub fn entries_to_activities(entries: &[Entry], start_date: Option<NaiveDate>, end_date: Option<NaiveDate>) -> Vec<Activity> {
+
+pub fn entries_to_activities(
+    entries: &[Entry], 
+    start_date: Option<NaiveDate>, 
+    end_date: Option<NaiveDate>,
+    now: Option<DateTime<Local>> // Add parameter for current time
+) -> Vec<Activity> {
     let mut activities = Vec::new();
     
-    // We need at least two entries to create an activity
-    if entries.len() < 2 {
+    // We need at least one entry to create an activity
+    if entries.is_empty() {
         return activities;
     }
     
     // Create activities from consecutive entries, skipping midnight separators and hello entries
     for i in 0..entries.len() - 1 {
-        // Skip if this is a midnight separator entry
-        if entries[i+1].name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
-            continue;
-        }
-        
-        // Skip if previous entry was a midnight separator
-        if entries[i].name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
-            continue;
-        }
-        
-        // Skip if this is a hello entry - it marks the start of day only
-        if entries[i+1].name == HELLO_ENTRY_NAME {
-            continue;
-        }
-        
-        // Skip if previous entry was a hello entry - hello doesn't create duration
+        // Skip current entry if it's a hello entry - hello doesn't create duration
         if entries[i].name == HELLO_ENTRY_NAME {
+            continue;
+        }
+        
+        // Skip current entry if it's a midnight separator
+        if entries[i].name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
             continue;
         }
         
@@ -144,52 +140,40 @@ pub fn entries_to_activities(entries: &[Entry], start_date: Option<NaiveDate>, e
         let start_time = entries[i].datetime;
         let end_time = entries[i+1].datetime;
         
-        // If the times span multiple days, split them into separate daily activities
-        if start_time.date_naive() != end_time.date_naive() {
-            // Create an activity for each day in the range
-            let mut current_date = start_time.date_naive();
-            let end_date = end_time.date_naive();
-            
-            while current_date <= end_date {
-                // Define the start and end of the activity for this specific day
-                let day_start = if current_date == start_time.date_naive() {
-                    start_time
-                } else {
-                    // Start of the day (midnight)
-                    Local.from_utc_datetime(&current_date.and_hms_opt(0, 0, 0).unwrap())
-                };
+        // Create activity using the CURRENT entry's name
+        // This represents what you were doing during this time span
+        let activity = Activity::new(
+            entries[i].name.clone(),
+            start_time,
+            end_time,
+            false,
+            entries[i].comment.clone(),
+        );
+        
+        activities.push(activity);
+    }
+    
+    // Handle the last entry separately - it represents what you're currently doing
+    // Only add if we have the current time and it's the same day
+    if let Some(now_time) = now {
+        if let Some(last_entry) = entries.last() {
+            // Skip if it's a hello entry or midnight separator
+            if last_entry.name != HELLO_ENTRY_NAME && 
+               !last_entry.name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
                 
-                let day_end = if current_date == end_date {
-                    end_time
-                } else {
-                    // End of the day (23:59:59)
-                    Local.from_utc_datetime(&current_date.and_hms_opt(23, 59, 59).unwrap())
-                };
-                
-                let activity = Activity::new(
-                    entries[i+1].name.clone(),
-                    day_start,
-                    day_end,
-                    false,
-                    entries[i+1].comment.clone(),
-                );
-                
-                activities.push(activity);
-                
-                // Move to the next day
-                current_date = current_date.succ_opt().unwrap();
+                // Only add if it's from today
+                if last_entry.datetime.date_naive() == now_time.date_naive() {
+                    let activity = Activity::new(
+                        last_entry.name.clone(),
+                        last_entry.datetime,
+                        now_time,
+                        true, // Mark as current activity
+                        last_entry.comment.clone(),
+                    );
+                    
+                    activities.push(activity);
+                }
             }
-        } else {
-            // Regular single-day activity
-            let activity = Activity::new(
-                entries[i+1].name.clone(),
-                start_time,
-                end_time,
-                false,
-                entries[i+1].comment.clone(),
-            );
-            
-            activities.push(activity);
         }
     }
     

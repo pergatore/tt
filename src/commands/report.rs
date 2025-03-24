@@ -50,7 +50,7 @@ pub fn execute(
     );
     
     // Convert entries to activities
-    let mut activities = storage::entries_to_activities(&filtered_entries, Some(range.start_date), Some(range.end_date));
+    let mut activities = storage::entries_to_activities(&filtered_entries, Some(range.start_date), Some(range.end_date), Some(now));    
     
     // For today-only reports, ensure we show all activities that have a start or end time today
     if is_today_only {
