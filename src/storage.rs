@@ -144,14 +144,15 @@ pub fn entries_to_activities(
         let start_date = start_time.date_naive();
         let end_date = end_time.date_naive();
         
-        // If the entries span across different days and the next entry isn't a midnight separator,
-        // we should limit this activity to the end of the day (23:59:59)
-        if start_date != end_date && !entries[i+1].name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) {
+        // FIX: Always limit activities to end of day when they span across different days,
+        // regardless of whether the next entry is a midnight separator or not
+        if start_date != end_date {
             // Create an end of day time (23:59:59) for the start date
             let end_of_day = Local
                 .from_local_datetime(
                     &start_date.and_hms_opt(23, 59, 59).unwrap()
                 )
+                .single()
                 .unwrap();
             
             // Create activity that ends at the end of the day
@@ -164,6 +165,30 @@ pub fn entries_to_activities(
             );
             
             activities.push(activity);
+            
+            // If the next entry isn't a midnight separator or hello entry,
+            // create another activity for the following day that starts at 00:00:00
+            if !entries[i+1].name.starts_with(MIDNIGHT_SEPARATOR_PREFIX) && 
+               entries[i+1].name != HELLO_ENTRY_NAME {
+                // Start of day time (00:00:00) for the end date
+                let start_of_day = Local
+                    .from_local_datetime(
+                        &end_date.and_hms_opt(0, 0, 0).unwrap()
+                    )
+                    .single()
+                    .unwrap();
+                
+                // Create continuation activity that starts at beginning of next day
+                let continuation_activity = Activity::new(
+                    entries[i].name.clone(),
+                    start_of_day,
+                    end_time,
+                    false,
+                    entries[i].comment.clone(),
+                );
+                
+                activities.push(continuation_activity);
+            }
         } else {
             // Create activity using the CURRENT entry's name
             // This represents what you were doing during this time span
