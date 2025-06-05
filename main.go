@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -526,11 +527,26 @@ func (m model) mainViewRender() string {
 	
 	// Quick stats
 	stats := m.tracker.getTodaysStats()
-	quickStats := fmt.Sprintf("\n%s\n%s\n%s\n%s\n",
+	quickStats := fmt.Sprintf("\n%s\n%s\n%s\n%s",
 		subtitleStyle.Render("Today's Summary:"),
 		workStyle.Render(fmt.Sprintf("  Work:  %s", formatDuration(stats.WorkTime))),
 		breakStyle.Render(fmt.Sprintf("  Break: %s", formatDuration(stats.BreakTime))),
 		subtitleStyle.Render(fmt.Sprintf("  Total: %s", formatDuration(stats.TotalTime))))
+	
+	// Project breakdown for main view
+	projects := m.tracker.getTodaysProjects()
+	// Debug: Always show the projects section to see what's in it
+	quickStats += "\n\n" + subtitleStyle.Render("Projects:")
+	if len(projects) == 0 {
+		quickStats += "\n" + infoStyle.Render("  No projects found")
+	} else {
+		for project, duration := range projects {
+			if project == "" {
+				project = "General"
+			}
+			quickStats += "\n" + workStyle.Render(fmt.Sprintf("  %s: %s", project, formatDuration(duration)))
+		}
+	}
 	
 	// Message
 	var message string
@@ -862,6 +878,19 @@ func (tt *TimeTracker) getTodaysStats() struct {
 	}
 }
 
+func (tt *TimeTracker) getTodaysProjects() map[string]time.Duration {
+	activities := tt.getTodaysActivities()
+	projects := make(map[string]time.Duration)
+	
+	for _, activity := range activities {
+		if activity.Type == Work {
+			projects[activity.Project] += activity.Duration
+		}
+	}
+	
+	return projects
+}
+
 func (tt *TimeTracker) generateTodaysSummary() string {
 	stats := tt.getTodaysStats()
 	activities := tt.getTodaysActivities()
@@ -938,7 +967,160 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%dh%02d", hours, minutes)
 }
 
+func printCLIHelp() {
+	fmt.Println("tt - Time Tracker")
+	fmt.Println()
+	fmt.Println("USAGE:")
+	fmt.Println("  tt                    Start TUI interface")
+	fmt.Println("  tt [command]          Run command and exit")
+	fmt.Println()
+	fmt.Println("COMMANDS:")
+	fmt.Println("  -s                    Start your day")
+	fmt.Println("  -a \"task name\"        Add completed task")
+	fmt.Println("  -c \"comment\"          Add comment (use with -a)")
+	fmt.Println("  -r                    Show today's report")
+	fmt.Println("  -x                    Extend last task to now")
+	fmt.Println("  -h                    Show this help")
+	fmt.Println()
+	fmt.Println("EXAMPLES:")
+	fmt.Println("  tt -s                 # Start your day")
+	fmt.Println("  tt -a \"Meeting: Standup\"")
+	fmt.Println("  tt -a \"Lunch **\"      # Break task")
+	fmt.Println("  tt -a \"Dev work\" -c \"Fixed login bug\"")
+	fmt.Println("  tt -r                 # View today's report")
+	fmt.Println("  tt -x                 # Extend last task")
+	fmt.Println()
+	fmt.Println("TASK TYPES:")
+	fmt.Println("  Regular task:    \"Meeting: Standup\"")
+	fmt.Println("  Break task:      \"Lunch **\"")
+	fmt.Println("  Ignored task:    \"Commuting ***\"")
+}
+
+func printTodaysReport(tracker *TimeTracker) {
+	activities := tracker.getTodaysActivities()
+	stats := tracker.getTodaysStats()
+	
+	fmt.Println("📊 Today's Report")
+	fmt.Println("================")
+	fmt.Println()
+	
+	// Summary
+	fmt.Printf("Work:  %s\n", formatDuration(stats.WorkTime))
+	fmt.Printf("Break: %s\n", formatDuration(stats.BreakTime))
+	fmt.Printf("Total: %s\n", formatDuration(stats.TotalTime))
+	fmt.Println()
+	
+	// Projects
+	projects := tracker.getTodaysProjects()
+	if len(projects) > 0 {
+		fmt.Println("Projects:")
+		for project, duration := range projects {
+			if project == "" {
+				project = "General"
+			}
+			fmt.Printf("  %s: %s\n", project, formatDuration(duration))
+		}
+		fmt.Println()
+	}
+	
+	// Activities
+	if len(activities) > 0 {
+		fmt.Println("Activities:")
+		for _, activity := range activities {
+			timeStr := activity.Start.Format("15:04") + "-" + activity.End.Format("15:04")
+			typeStr := ""
+			switch activity.Type {
+			case Break:
+				typeStr = " [BREAK]"
+			case Ignored:
+				typeStr = " [IGNORED]"
+			}
+			
+			fmt.Printf("  %s  %s  %s%s\n", 
+				timeStr, 
+				formatDuration(activity.Duration), 
+				activity.Name,
+				typeStr)
+		}
+	} else {
+		fmt.Println("No activities logged today.")
+	}
+}
+
 func main() {
+	// Parse command line flags
+	var (
+		addTask    = flag.String("a", "", "Add a completed task")
+		startDay   = flag.Bool("s", false, "Start your day")
+		showReport = flag.Bool("r", false, "Show today's report")
+		extend     = flag.Bool("x", false, "Extend last task to current time")
+		showHelp   = flag.Bool("h", false, "Show help")
+		comment    = flag.String("c", "", "Add comment to task (use with -a)")
+	)
+	flag.Parse()
+
+	// Handle CLI commands
+	if *showHelp {
+		printCLIHelp()
+		return
+	}
+
+	// Initialize tracker for CLI operations
+	tracker := &TimeTracker{}
+	tracker.loadConfig()
+	tracker.loadEntries()
+
+	if *startDay {
+		err := tracker.addStart()
+		if err != nil {
+			fmt.Printf("Error starting day: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("✅ Day started!")
+		return
+	}
+
+	if *addTask != "" {
+		entry := Entry{
+			Timestamp: time.Now(),
+			Name:      *addTask,
+			Comment:   *comment,
+		}
+		
+		err := tracker.addEntry(entry)
+		if err != nil {
+			fmt.Printf("Error adding task: %v\n", err)
+			os.Exit(1)
+		}
+		
+		// Calculate and show duration
+		var durationMsg string
+		if len(tracker.entries) > 1 {
+			lastEntry := tracker.entries[len(tracker.entries)-2]
+			duration := entry.Timestamp.Sub(lastEntry.Timestamp)
+			durationMsg = fmt.Sprintf(" (%s)", formatDuration(duration))
+		}
+		
+		fmt.Printf("✅ Task completed: %s%s\n", *addTask, durationMsg)
+		return
+	}
+
+	if *extend {
+		err := tracker.extend()
+		if err != nil {
+			fmt.Printf("Error extending task: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("✅ Task extended to current time!")
+		return
+	}
+
+	if *showReport {
+		printTodaysReport(tracker)
+		return
+	}
+
+	// If no CLI flags, start TUI
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)

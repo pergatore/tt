@@ -10,11 +10,12 @@ A beautiful terminal-based time tracker built with Go and the Charmbracelet ecos
 
 - 🎯 **Retrospective time tracking** - Log completed tasks with automatic duration calculation
 - 🎨 **Beautiful TUI interface** - Styled with Charmbracelet's Lipgloss
-- ⚡ **Simple workflow** - Start → Work → Complete tasks → View reports
+- ⚡ **CLI and TUI modes** - Quick command-line operations or interactive interface
 - 📊 **Real-time summaries** - Work/break/total time with project breakdowns
 - 🔄 **Task extension** - Extend the last task if you're still working on it
 - 💾 **Persistent storage** - JSON-based data storage with automatic backups
 - 🎨 **Color-coded activities** - Visual distinction between work, breaks, and ignored time
+- 📋 **Project categorization** - Automatic parsing of "Project: Task" format
 
 ## 🚀 Installation
 
@@ -48,7 +49,40 @@ go install
 
 ## 🎮 Usage
 
-### Key Commands
+### Command Line Interface (CLI)
+
+For quick operations, use CLI commands:
+
+```bash
+# Start your day
+tt -s
+
+# Add completed tasks
+tt -a "Meeting: Standup"
+tt -a "Education: CKA Labs" -c "Studied networking concepts"
+tt -a "Lunch **"                    # Break task
+tt -a "Commuting ***"               # Ignored task
+
+# View today's report
+tt -r
+
+# Extend last task to current time
+tt -x
+
+# Show help
+tt -h
+```
+
+### Terminal UI (TUI)
+
+For interactive sessions, run without arguments:
+
+```bash
+# Launch beautiful TUI interface
+tt
+```
+
+### TUI Key Commands
 
 #### Navigation
 - `↑/k, ↓/j` - Move up/down
@@ -64,25 +98,52 @@ go install
 - `x` - **Extend last task** (continue working on previous task)
 - `?` - **Toggle help** (show all commands)
 
+### CLI Commands
+
+```bash
+tt                              # Launch TUI interface
+tt -s                           # Start your day
+tt -a "task name"               # Add completed task
+tt -a "task name" -c "comment"  # Add task with comment
+tt -r                           # Show today's report
+tt -x                           # Extend last task
+tt -h                           # Show CLI help
+```
+
 ### Workflow Example
 
-1. **Start your day**
-   ```
-   Press 's' → Creates "Start" entry at current time
+#### CLI Workflow (Quick & Scriptable)
+```bash
+# Start your day
+tt -s
+
+# Work on tasks throughout the day...
+tt -a "Meeting: Daily standup"
+tt -a "Development: User auth" -c "Implemented JWT tokens"  
+tt -a "Lunch **"
+tt -a "Code review" -c "Reviewed PR #123"
+
+# Check your progress
+tt -r
+```
+
+#### TUI Workflow (Interactive & Visual)
+1. **Launch interface**
+   ```bash
+   tt
    ```
 
-2. **Work on tasks** (time passes naturally)
+2. **Start your day** - Press `s`
 
-3. **Complete tasks as you finish them**
-   ```
-   Press 'a' → "Meeting: Standup" → Optional comment
-   Duration automatically calculated from last entry
-   ```
+3. **Work naturally** - Time passes as you focus on tasks
 
-4. **View your progress**
-   ```
-   Press 'r' → Beautiful report with time breakdown
-   ```
+4. **Log completed work** - Press `a` when you finish something
+   - Guided prompts for task name and optional comments
+   - Automatic duration calculation from last entry
+
+5. **Monitor progress** - Press `r` for beautiful reports
+
+6. **Extend if needed** - Press `x` to continue previous task
 
 ### Task Types
 
@@ -105,7 +166,28 @@ Meeting: Daily standup
 
 ## 📊 Interface Overview
 
-### Main Dashboard
+### CLI Report Output
+```
+📊 Today's Report
+================
+
+Work:  3h15
+Break: 0h45
+Total: 4h00
+
+Projects:
+  Meeting: 0h30
+  Education: 1h45
+  Development: 1h00
+
+Activities:
+  09:00-09:30  0h30  Meeting: Standup
+  09:30-11:15  1h45  Education: CKA Labs
+  11:15-12:00  0h45  Lunch ** [BREAK]
+  12:00-13:00  1h00  Development: Bug fixes
+```
+
+### TUI Main Dashboard
 ```
 ⏱️  Time Tracker
 
@@ -126,7 +208,7 @@ Today's Summary:
 Press ? for help, q to quit
 ```
 
-### Task Completion Flow
+### TUI Task Completion Flow
 ```
 ✅ Task Completed
 
@@ -199,7 +281,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - [Charmbracelet](https://charm.sh/) for the amazing TUI toolkit
-- [Conventional Commits](https://conventionalcommits.org/) for inspiration on task categorization
 - The Go community for excellent tooling and libraries
 
 ## 🐛 Issues & Support

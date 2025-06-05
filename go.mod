@@ -1,4 +1,4 @@
-module timetracker
+module tt
 
 go 1.24.2
 
