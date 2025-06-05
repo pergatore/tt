@@ -1,185 +1,218 @@
-# Timetracker (TT) ⏱️
+# Time Tracker TUI ⏱️
 
-A simple command-line time tracking application written in Rust.
+A beautiful terminal-based time tracker built with Go and the Charmbracelet ecosystem. Track your completed tasks with automatic duration calculation and enjoy a stunning interface.
 
-## Features
+![Time Tracker TUI Demo](https://img.shields.io/badge/TUI-Charmbracelet-purple)
+![Go Version](https://img.shields.io/badge/Go-1.19+-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-- Track your time spent on activities throughout the day
-- Categorize activities by projects
-- Record time when you start and finish tasks
-- Generate detailed reports of your time usage
-- Define different activity types (work, break, ignored)
-- Export reports to CSV format
-- Automatic handling of date ranges
+## ✨ Features
 
-## Quick Start
+- 🎯 **Retrospective time tracking** - Log completed tasks with automatic duration calculation
+- 🎨 **Beautiful TUI interface** - Styled with Charmbracelet's Lipgloss
+- ⚡ **Simple workflow** - Start → Work → Complete tasks → View reports
+- 📊 **Real-time summaries** - Work/break/total time with project breakdowns
+- 🔄 **Task extension** - Extend the last task if you're still working on it
+- 💾 **Persistent storage** - JSON-based data storage with automatic backups
+- 🎨 **Color-coded activities** - Visual distinction between work, breaks, and ignored time
 
-### Installation
+## 🚀 Installation
 
-1. Make sure you have Rust installed (https://rustup.rs/)
-2. Clone this repository
-3. Build and install the project:
+### Prerequisites
+- Go 1.19 or later
+
+### Quick Install
+```bash
+# Clone the repository
+git clone https://github.com/pergatore/tt
+cd tt
+
+# Install dependencies
+go mod tidy
+
+# Run the application
+go run main.go
+```
+
+### Build Binary
+```bash
+# Build for your platform
+go build -o tt main.go
+
+# Move to PATH (optional)
+sudo mv tt /usr/local/bin/
+
+# Or install with go install
+go install
+```
+
+## 🎮 Usage
+
+### Key Commands
+
+#### Navigation
+- `↑/k, ↓/j` - Move up/down
+- `←/h, →/l` - Move left/right  
+- `Enter` - Select/confirm
+- `Esc` - Go back
+- `q` - Quit application
+
+#### Actions
+- `s` - **Start day** (creates initial timestamp)
+- `a` - **Complete task** (log what you just finished)
+- `r` - **View report** (detailed today's summary)
+- `x` - **Extend last task** (continue working on previous task)
+- `?` - **Toggle help** (show all commands)
+
+### Workflow Example
+
+1. **Start your day**
    ```
-   cargo install --path .
-   ```
-4. This will install the `tt` command to your PATH
-5. Alternatively, run `./build.sh`
-
-### Basic Usage
-
-1. Start your day:
-   ```
-   tt hello
+   Press 's' → Creates "Start" entry at current time
    ```
 
-2. Add tasks as you complete them:
-   ```
-   tt add "Education: CKA Labs" # This will add CKA labs to the Education project
-   tt add "Lunch **"  # This will add a break
-   tt add "Meeting: Standup" # This will add Standup to the Meeting project
-   tt add "Twiddlin' thumbs ***"  # This will add a task that doesn't count toward working time (i.e commuting)
-   ```
+2. **Work on tasks** (time passes naturally)
 
-3. Generate a report for today:
+3. **Complete tasks as you finish them**
    ```
-   tt report
+   Press 'a' → "Meeting: Standup" → Optional comment
+   Duration automatically calculated from last entry
    ```
 
-4. Edit your entries:
+4. **View your progress**
    ```
-   tt edit
+   Press 'r' → Beautiful report with time breakdown
    ```
 
-## Activity Types
+### Task Types
 
-- **Work activities**: Regular activities that count toward working time.
-  Example: `tt add "admin"`
+The application supports three types of activities:
 
-- **Break activities**: Activities that count toward break time, marked with `**` at the end.
-  Example: `tt add "lunch **"`
+- **Work tasks**: `"Meeting: Standup"`, `"Development: Bug fixes"`
+- **Break activities**: `"Lunch **"`, `"Coffee break **"` (end with `**`)
+- **Ignored time**: `"Commuting ***"`, `"Personal call ***"` (end with `***`)
 
-- **Ignored activities**: Activities that are not counted in reports, marked with `***` at the end.
-  Example: `tt add "commuting ***"`
+### Project Format
 
-## Project Notation
-
-You can group activities by projects using the `project: task` notation:
+Use the `Project: Task` format to categorize your work:
 
 ```
-tt add "Education: CKA Labs"
-tt add "Sprint-2: bug fix"
+Education: CKA Labs
+Sprint-2: Bug fix #123
+Admin: Email cleanup
+Meeting: Daily standup
 ```
 
-## Commands
+## 📊 Interface Overview
 
-### `hello`
+### Main Dashboard
+```
+⏱️  Time Tracker
 
-Marks the beginning of your day:
-```
-tt hello
-```
+Latest: Education: CKA Labs (45min ago)
 
-### `add`
+Recent Activities:
+  09:00-09:30  0h30  Meeting: Standup
+  09:30-10:15  0h45  Education: CKA Labs
+  10:15-12:00  1h45  Development: Bug fixes
 
-Adds a completed task:
-```
-tt add [task description]
-```
+Today's Summary:
+  Work:  2h30
+  Break: 0h30
+  Total: 3h00
 
-Add with a comment:
-```
-tt add "project: task" --comment "details about the task"
-```
+• Task completed: Education: CKA Labs (45min)
 
-### `report`
-
-Generate a report of your activities:
-```
-tt report
+Press ? for help, q to quit
 ```
 
-Report for a specific date:
+### Task Completion Flow
 ```
-tt report 2025-03-15
-```
+✅ Task Completed
 
-Report for a date range:
-```
-tt report --from 2025-03-10 --to 2025-03-15
-```
+What task did you just finish?
+Examples: 'Meeting: Standup', 'Lunch **', 'Commuting ***'
 
-Filter by project:
-```
-tt report --project "project-1"
-```
+Duration: 1h15 (since 09:30)
 
-Export as CSV:
-```
-tt report --csv-section per_day
-tt report --csv-section per_task
+[Meeting: Daily standup____________]
+
+Enter to continue • Esc to cancel
 ```
 
-Additional options:
-- `--details`: Show detailed breakdown even for multi-day reports
-- `--comments`: Include comments in the report
-- `--per-day`: Group activities by day
-- `--no-current-activity`: Don't include current activity in the report
-- `--month [this|prev|YYYY-MM]`: Show report for a specific month
-- `--week [this|prev|number]`: Show report for a specific week
+## 📁 Data Storage
 
-### `stretch`
+The application stores data in your system's standard configuration directory:
 
-Extend the previous task to the current time:
-```
-tt stretch
-```
+- **Linux/macOS**: `~/.config/timetracker/`
+- **Windows**: `%APPDATA%\timetracker\`
 
-### `edit`
+### Files Created
+- `config.json` - Application configuration
+- `entries.json` - Your time tracking data
 
-Edit your time log file in your default text editor:
-```
-tt edit
-```
-
-### `config`
-
-View or modify configuration:
-```
-tt config
-tt config --filename
-tt config --default
+### Data Format
+```json
+[
+  {
+    "timestamp": "2025-01-15T09:00:00Z",
+    "name": "Start",
+    "comment": ""
+  },
+  {
+    "timestamp": "2025-01-15T09:30:00Z", 
+    "name": "Meeting: Standup",
+    "comment": "Sprint planning discussion"
+  }
+]
 ```
 
-## Configuration
+## 🎨 Color Coding
 
-The configuration file is stored at:
-- Linux/macOS: `~/.config/timetracker/tt.json`
-- Windows: `%APPDATA%\timetracker\tt.json`
+- 🔵 **Work activities** - Blue text
+- 🟠 **Break activities** - Orange text  
+- ⚪ **Ignored activities** - Gray text
+- 🟢 **Current status** - Green text
+- 🔴 **Error messages** - Red text
+- 🟢 **Success messages** - Green text
 
-Settings include:
-- Data file location
-- Default editor
-- Timezone settings
+## 🏗️ Built With
 
-## Data File Format
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - Terminal UI framework
+- [Bubbles](https://github.com/charmbracelet/bubbles) - Common TUI components
+- [Lipgloss](https://github.com/charmbracelet/lipgloss) - Styling and layout
 
-Each entry follows this format:
-```
-YYYY-MM-DD HH:MM[+/-HHMM] activity name [# comment]
-```
+## 🤝 Contributing
 
-Example:
-```
-2025-03-15 09:00+0100 Hello
-2025-03-15 10:30+0100 Education: CKA Labs 
-2025-03-15 12:00+0100 Lunch **
-2025-03-15 13:00+0100 Sprint-69: implementing feature JIRA-069
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-This software is released under the GPL-3.0 License.
+## 📝 License
 
-## Shoutout & Accolades
-This is heavily inspired by a probably better tool [UTT](https://github.com/larose/utt) by [larose](https://github.com/larose)
-This was mainly used as a learning journey for using rust and some added functionality I needed for my work, you can practically consider this unmaintained. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Charmbracelet](https://charm.sh/) for the amazing TUI toolkit
+- [Conventional Commits](https://conventionalcommits.org/) for inspiration on task categorization
+- The Go community for excellent tooling and libraries
+
+## 🐛 Issues & Support
+
+If you encounter any issues or have questions:
+
+1. Check the [Issues](https://github.com/pergatore/tt/issues) page
+2. Create a new issue with:
+   - Your operating system
+   - Go version (`go version`)
+   - Steps to reproduce the problem
+   - Expected vs actual behavior
+
+---
+
+**Happy time tracking! ⏰**
